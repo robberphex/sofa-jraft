@@ -21,6 +21,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,20 +73,20 @@ public class RemoteFileCopier {
         this.raftOptions = opts.getRaftOptions();
         this.snapshotThrottle = snapshotThrottle;
 
-        final int prefixSize = Snapshot.REMOTE_SNAPSHOT_URI_SCHEME.length();
-        if (uri == null || !uri.startsWith(Snapshot.REMOTE_SNAPSHOT_URI_SCHEME)) {
+        URI uriObj;
+        try {
+            uriObj = new URI(uri);
+        } catch (final URISyntaxException | NullPointerException e) {
             LOG.error("Invalid uri {}.", uri);
             return false;
         }
-        uri = uri.substring(prefixSize);
-        final int slasPos = uri.indexOf('/');
-        final String ipAndPort = uri.substring(0, slasPos);
-        uri = uri.substring(slasPos + 1);
-
         try {
-            this.readId = Long.parseLong(uri);
-            final String[] ipAndPortStrs = ipAndPort.split(":");
-            this.endpoint = new Endpoint(ipAndPortStrs[0], Integer.parseInt(ipAndPortStrs[1]));
+            String ip = uriObj.getHost();
+            int port = uriObj.getPort();
+            String uriPath = uriObj.getPath();
+            final int slasPos = uriPath.indexOf('/');
+            this.readId = Long.parseLong(uriPath.substring(slasPos + 1));
+            this.endpoint = new Endpoint(ip, port);
         } catch (final Exception e) {
             LOG.error("Fail to parse readerId or endpoint.", e);
             return false;
